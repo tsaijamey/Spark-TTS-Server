@@ -31,4 +31,10 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    print(f"--- Loading Settings ---")
+    print(f"Loaded API_KEY from env: {settings.API_KEY}")
+    # 可以根据需要添加打印其他环境变量
+    # print(f"Loaded SPARK_TTS_ROOT_DIR: {settings.SPARK_TTS_ROOT_DIR}")
+    print(f"------------------------")
+    return settings
