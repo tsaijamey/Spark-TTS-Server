@@ -45,31 +45,35 @@ class FileManager:
             return []
         
         files = []
+        print(f"Scanning directory: {project_path}")
         for filename in os.listdir(project_path):
             file_path = os.path.join(project_path, filename)
             if os.path.isfile(file_path) and self._is_audio_file(filename):
-                # 尝试从文件名中提取顺序信息
-                order = 0  # 默认顺序为0
+                # 调试信息
+                print(f"Found audio file: {filename}")
+                
+                # 从文件名中提取顺序信息
+                order = 0
                 try:
-                    # 假设文件名格式为 {order}_filename.extension
+                    # 尝试从文件名中提取顺序号
                     if "_" in filename:
                         order_str = filename.split("_")[0]
                         if order_str.isdigit():
                             order = int(order_str)
                 except:
-                    pass  # 提取失败时使用默认值
+                    pass
                     
-                # 估算音频时长
+                # 获取文件持续时间，如果可能
                 duration = self._get_audio_duration(file_path)
                 
-                # 确保每个文件记录都包含order字段
                 files.append({
                     "filename": filename,
                     "path": file_path,
-                    "order": order,  # 确保存在order字段
+                    "order": order,
                     "duration": duration
                 })
         
+        print(f"Total files found: {len(files)}")
         return files
 
     def _get_audio_duration(self, file_path: str) -> float:
@@ -86,7 +90,8 @@ class FileManager:
             
     def _is_audio_file(self, filename: str) -> bool:
         """检查文件是否为支持的音频格式"""
-        return filename.lower().endswith(('.wav', '.mp3', '.ogg', '.aac', '.m4a'))
+        extensions = ('.wav', '.mp3', '.ogg', '.aac', '.m4a')
+        return any(filename.lower().endswith(ext) for ext in extensions)
         
     def get_audio_path(self, project_id: str, filename: str) -> str:
         """获取音频文件完整路径"""

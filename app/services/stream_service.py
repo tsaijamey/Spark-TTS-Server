@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from typing import List, Dict, Optional, Any
 from app.core.config import get_settings
 from app.services.file_manager import FileManager
@@ -26,6 +27,9 @@ class StreamService:
         if not files:
             raise ValueError(f"No files found for project {project_id}")
         
+        # 打印找到的文件，用于调试
+        print(f"Found {len(files)} files for project {project_id}: {files}")
+        
         # 添加错误处理逻辑，避免"order"字段缺失导致的KeyError
         try:
             # 优先尝试按order排序
@@ -34,30 +38,38 @@ class StreamService:
             # 如果获取order字段出错，则退回到按文件名排序
             sorted_files = sorted(files, key=lambda x: x.get("filename", ""))
         
-        # 生成m3u8内容
-        m3u8_content = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:30\n#EXT-X-MEDIA-SEQUENCE:0\n"
+        # 创建基础URL
+        base_url = "/audio"
+        if request:
+            # 如果有请求对象，构建完整的基础URL
+            host = request.headers.get("host", "")
+            scheme = request.headers.get("x-forwarded-proto", "http")
+            base_url = f"{scheme}://{host}/audio"
         
-        # 获取项目目录基础路径
-        base_dir = self.file_manager.get_base_dir()
+        # 生成m3u8内容，使用标准格式以确保兼容性
+        m3u8_content = "#EXTM3U\n"
+        m3u8_content += "#EXT-X-VERSION:3\n"
+        m3u8_content += "#EXT-X-TARGETDURATION:60\n"  # 增加最大分段时长
+        m3u8_content += "#EXT-X-MEDIA-SEQUENCE:0\n"
         
         for file_info in sorted_files:
-            # 安全地获取文件路径，使用file_manager来处理路径
+            filename = file_info.get("filename", "")
             file_path = file_info.get("path", "")
             
-            # 创建相对路径：从项目基础目录开始的路径
-            if base_dir and file_path.startswith(base_dir):
-                relative_path = file_path[len(base_dir):].lstrip(os.sep)
-            else:
-                # 如果无法确定相对路径，直接使用文件名
-                relative_path = os.path.basename(file_path)
+            if not filename or not file_path or not os.path.exists(file_path):
+                continue  # 跳过无效文件
             
-            # 添加音频持续时间信息
-            duration = file_info.get("duration", 10)  # 默认10秒
+            # 创建音频文件访问URL
+            # 使用直接访问项目ID和文件名的方式，更容易被服务器解析
+            audio_url = f"/audio/{project_id}/{urllib.parse.quote(filename)}"
             
-            # 构建完整的流URL
-            stream_url = f"{self.settings.STREAM_BASE_URL or ''}/{relative_path}"
+            # 指定分段时长，一般为音频实际长度，暂用默认值30秒
+            duration = file_info.get("duration", 30)
             
-            m3u8_content += f"#EXTINF:{duration},\n{stream_url}\n"
+            # 添加分段信息
+            m3u8_content += f"#EXTINF:{duration},\n"
+            m3u8_content += f"{audio_url}\n"
         
-        m3u8_content += "#EXT-X-ENDLIST"
+        # 标记播放列表结束
+        m3u8_content += "#EXT-X-ENDLIST\n"
         return m3u8_content

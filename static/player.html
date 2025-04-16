@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spark TTS 音频播放</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        #audioPlayer {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+        
+        #directLinks {
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spark TTS 音频播放器</h1>
+    
+    <div>
+        <label for="projectId">项目ID:</label>
+        <input type="text" id="projectId" value="test123">
+        <button onclick="loadAudio()">加载音频</button>
+    </div>
+    
+    <audio id="audioPlayer" controls></audio>
+    
+    <div id="status">状态: 等待加载音频...</div>
+    
+    <div id="directLinks"></div>
+    
+    <script>
+        // 获取音频播放情况
+        function loadAudio() {
+            const audio = document.getElementById('audioPlayer');
+            const projectId = document.getElementById('projectId').value;
+            const statusDiv = document.getElementById('status');
+            const directLinks = document.getElementById('directLinks');
+            
+            if (!projectId) {
+                statusDiv.textContent = '请先输入项目ID';
+                return;
+            }
+            
+            // 显示正在加载
+            statusDiv.textContent = '正在加载音频播放列表...';
+            
+            // 清空直接链接区域
+            directLinks.innerHTML = '';
+            
+            // 获取m3u8播放列表中的直接音频文件链接
+            fetch(`/spark/stream/${projectId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(m3u8Content => {
+                    statusDiv.innerHTML = '播放列表加载成功:<br><pre>' + m3u8Content + '</pre>';
+                    
+                    // 解析m3u8找出直接音频链接
+                    const lines = m3u8Content.split('\n');
+                    const audioUrls = [];
+                    
+                    for (let i = 0; i < lines.length; i++) {
+                        if (!lines[i].startsWith('#') && lines[i].trim() !== '') {
+                            audioUrls.push(lines[i]);
+                        }
+                    }
+                    
+                    // 添加直接链接按钮
+                    if (audioUrls.length > 0) {
+                        directLinks.innerHTML = '<h3>直接音频链接:</h3>';
+                        audioUrls.forEach((url, index) => {
+                            const button = document.createElement('button');
+                            button.textContent = `音频文件 ${index + 1}`;
+                            button.onclick = function() {
+                                audio.src = url;
+                                audio.play();
+                            };
+                            directLinks.appendChild(button);
+                        });
+                    } else {
+                        directLinks.innerHTML = '<p>播放列表中未找到音频文件链接</p>';
+                    }
+                    
+                    // 尝试使用HLS.js播放
+                    const m3u8Url = `/spark/stream/${projectId}`;
+                    
+                    if (Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource(m3u8Url);
+                        hls.attachMedia(audio);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            statusDiv.textContent += '\nHLS.js 已加载播放列表，准备播放...';
+                        });
+                        
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            statusDiv.textContent += `\nHLS错误: ${data.type} - ${data.details}`;
+                            console.error('HLS error:', data);
+                        });
+                    } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                        // 原生支持HLS的浏览器（如Safari）
+                        audio.src = m3u8Url;
+                        statusDiv.textContent += '\n浏览器原生支持HLS播放';
+                    } else {
+                        statusDiv.textContent += '\n您的浏览器不支持HLS播放，请使用直接链接';
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = `加载失败: ${error.message}`;
+                    console.error('Error loading audio:', error);
+                });
+        }
+    </script>
+</body>
+</html>

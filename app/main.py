@@ -244,6 +244,35 @@ async def get_audio_file(project_id: str, filename: str):
             detail=f"Audio file not found: {filename}"
         )
 
+@app.get("/audio/{project_id}/{filename}")
+async def get_audio_file(project_id: str, filename: str):
+    """直接获取项目中的音频文件"""
+    try:
+        # 获取项目路径
+        project_path = file_manager.get_project_path(project_id)
+        file_path = os.path.join(project_path, filename)
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"Audio file not found: {filename}")
+        
+        # 确定音频类型
+        content_type = "audio/wav"  # 默认为WAV
+        if filename.endswith(".mp3"):
+            content_type = "audio/mpeg"
+        elif filename.endswith(".ogg"):
+            content_type = "audio/ogg"
+        elif filename.endswith(".m4a"):
+            content_type = "audio/mp4"
+        
+        return FileResponse(
+            file_path,
+            media_type=content_type,
+            filename=filename
+        )
+    except Exception as e:
+        logger.error(f"Error getting audio file {filename} for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting audio file: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.HOST, port=settings.PORT)
