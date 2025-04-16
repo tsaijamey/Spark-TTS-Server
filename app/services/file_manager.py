@@ -36,15 +36,54 @@ class FileManager:
         return str(filepath)
         
     def get_project_files(self, project_id: str) -> List[Dict[str, Any]]:
-        """获取项目文件列表"""
-        project_path = Path(self.get_project_path(project_id))
+        """获取项目的所有文件信息"""
+        project_path = self.get_project_path(project_id)
+        if not os.path.exists(project_path):
+            return []
+        
         files = []
-        for file in project_path.glob("*.*"):
-            files.append({
-                "filename": file.name,
-                "download_url": f"/audio/{project_id}/{file.name}"
-            })
-        return sorted(files, key=lambda x: x["filename"])
+        for filename in os.listdir(project_path):
+            file_path = os.path.join(project_path, filename)
+            if os.path.isfile(file_path) and self._is_audio_file(filename):
+                # 尝试从文件名中提取顺序信息
+                order = 0  # 默认顺序为0
+                try:
+                    # 假设文件名格式为 {order}_filename.extension
+                    if "_" in filename:
+                        order_str = filename.split("_")[0]
+                        if order_str.isdigit():
+                            order = int(order_str)
+                except:
+                    pass  # 提取失败时使用默认值
+                    
+                # 估算音频时长
+                duration = self._get_audio_duration(file_path)
+                
+                # 确保每个文件记录都包含order字段
+                files.append({
+                    "filename": filename,
+                    "path": file_path,
+                    "order": order,  # 确保存在order字段
+                    "duration": duration
+                })
+        
+        return files
+
+    def _get_audio_duration(self, file_path: str) -> float:
+        """获取音频文件的持续时间（秒）"""
+        try:
+            # 如果有ffprobe或其他音频处理库可用，可以获取精确时长
+            # 这里提供一个简单的预估值
+            file_size = os.path.getsize(file_path)
+            # 粗略估计：假设WAV格式，16位采样，单声道，44.1kHz
+            # 每秒约88.2KB
+            return file_size / (88200) 
+        except:
+            return 10  # 默认10秒
+            
+    def _is_audio_file(self, filename: str) -> bool:
+        """检查文件是否为支持的音频格式"""
+        return filename.lower().endswith(('.wav', '.mp3', '.ogg', '.aac', '.m4a'))
         
     def get_audio_path(self, project_id: str, filename: str) -> str:
         """获取音频文件完整路径"""
