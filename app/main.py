@@ -226,37 +226,6 @@ async def get_project_files(project_id: str):
 
 @app.get("/audio/{project_id}/{filename}")
 async def get_audio_file(project_id: str, filename: str):
-    """
-    下载指定项目下的特定音频文件
-    
-    - **project_id**: 项目ID
-    - **filename**: 文件名
-    """
-    try:
-        # 获取音频文件路径
-        file_path = file_manager.get_audio_path(project_id, filename)
-        
-        # 确定文件类型
-        content_type = "audio/wav"
-        if filename.endswith(".mp3"):
-            content_type = "audio/mpeg"
-        elif filename.endswith(".ogg"):
-            content_type = "audio/ogg"
-        
-        # 返回音频文件
-        return StreamingResponse(
-            content=open(file_path, "rb"),
-            media_type=content_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Audio file not found: {filename}"
-        )
-
-@app.get("/audio/{project_id}/{filename}")
-async def get_audio_file(project_id: str, filename: str):
     """直接获取项目中的音频文件"""
     try:
         # 获取项目路径
@@ -264,6 +233,7 @@ async def get_audio_file(project_id: str, filename: str):
         file_path = os.path.join(project_path, filename)
         
         if not os.path.exists(file_path):
+            logger.error(f"Audio file not found: {file_path}")
             raise HTTPException(status_code=404, detail=f"Audio file not found: {filename}")
         
         # 确定音频类型
@@ -275,8 +245,9 @@ async def get_audio_file(project_id: str, filename: str):
         elif filename.endswith(".m4a"):
             content_type = "audio/mp4"
         
+        # 返回音频文件
         return FileResponse(
-            file_path,
+            path=file_path,
             media_type=content_type,
             filename=filename
         )
