@@ -77,7 +77,7 @@ app.mount("/static", StaticFiles(directory=static_files_dir), name="static")
 @app.get("/")
 async def root():
     """将根路径重定向到播放器页面"""
-    return RedirectResponse(url="/static/player.html")
+    return RedirectResponse(url="static/player.html")
 
 @app.post("/synthesize", response_model=SynthesizeResponse)
 async def synthesize(

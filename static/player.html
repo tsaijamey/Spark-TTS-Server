@@ -54,6 +54,9 @@
     <div id="directLinks"></div>
     
     <script>
+        // 确定基础路径，处理反向代理情况
+        const basePath = '/spark'; // 反向代理路径
+
         // 获取音频播放情况
         function loadAudio() {
             const audio = document.getElementById('audioPlayer');
@@ -73,7 +76,8 @@
             directLinks.innerHTML = '';
             
             // 获取m3u8播放列表中的直接音频文件链接
-            fetch(`/stream/${projectId}`)
+            // 根据反向代理配置构建正确的URL
+            fetch(`${basePath}/stream/${projectId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -89,7 +93,14 @@
                     
                     for (let i = 0; i < lines.length; i++) {
                         if (!lines[i].startsWith('#') && lines[i].trim() !== '') {
-                            audioUrls.push(lines[i]);
+                            // 添加基础路径前缀，如果URL不是绝对路径
+                            let url = lines[i];
+                            if (!url.startsWith('http') && !url.startsWith('/')) {
+                                url = `${basePath}/${url}`;
+                            } else if (url.startsWith('/') && !url.startsWith('/spark')) {
+                                url = `${basePath}${url}`;
+                            }
+                            audioUrls.push(url);
                         }
                     }
                     
@@ -110,7 +121,7 @@
                     }
                     
                     // 尝试使用HLS.js播放
-                    const m3u8Url = `/stream/${projectId}`;
+                    const m3u8Url = `${basePath}/stream/${projectId}`;
                     
                     if (Hls.isSupported()) {
                         const hls = new Hls();
