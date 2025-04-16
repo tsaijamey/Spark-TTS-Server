@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, HTTPException, status, Depends
+from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, File
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import uuid
@@ -66,26 +66,30 @@ async def root():
 
 @app.post("/synthesize", response_model=SynthesizeResponse)
 async def synthesize(
-    request: SynthesizeRequest = None,
-    prompt_speech: UploadFile = None,
+    # Parameters are now expected as Form fields
+    text: str = Form(...),
+    project_id: Optional[str] = Form(None),
+    output_format: str = Form("wav"),
+    prompt_text: Optional[str] = Form(None),
+    split_sentences: bool = Form(False),
+    prompt_speech: Optional[UploadFile] = File(None), # Explicitly use File for clarity
     api_key: str = Depends(get_api_key)
 ):
     """
-    接收文本和可选参数，生成语音文件并将其关联到指定或新生成的 project_id
-    
-    - **text**: 要合成的文本
-    - **project_id**: (可选) 项目ID，如果为空则生成新的
-    - **prompt_speech**: (可选) 提示语音文件，用于声音克隆
-    - **prompt_text**: (可选) 提示文本，与提示语音配合使用
-    - **output_format**: (可选) 输出格式，默认为 wav
-    - **split_sentences**: (可选) 是否按句分割，默认为 false
+    接收文本和可选参数（通过 multipart/form-data），生成语音文件并将其关联到指定或新生成的 project_id
+
+    - **text**: 要合成的文本 (Form field)
+    - **project_id**: (可选) 项目ID (Form field)
+    - **prompt_speech**: (可选) 提示语音文件 (File upload)
+    - **prompt_text**: (可选) 提示文本 (Form field)
+    - **output_format**: (可选) 输出格式，默认为 wav (Form field)
+    - **split_sentences**: (可选) 是否按句分割，默认为 false (Form field)
     """
-    # 验证请求参数
-    if not request or not request.text:
-        print("Request is :", request)
-        print("Request text is :", request.text)
+    # 验证请求参数 (using the 'text' variable directly)
+    if not text:
+        # The previous print statements for 'request' are no longer valid
         raise ValidationError("Text is required")
-    
+
     # 处理提示语音文件
     prompt_speech_path = None
     if prompt_speech:
@@ -97,51 +101,67 @@ async def synthesize(
             raise ValidationError(
                 f"Prompt speech file too large, max size: {settings.MAX_PROMPT_SIZE_MB}MB"
             )
-        
-        # 验证提示文本
-        if not request.prompt_text:
+
+        # 验证提示文本 (using the 'prompt_text' variable)
+        if not prompt_text:
             raise ValidationError("Prompt text is required when prompt speech is provided")
-        
+
         # 保存提示语音文件到临时位置
         temp_dir = Path(settings.GENERATED_AUDIO_DIR) / "temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
-        prompt_speech_path = str(temp_dir / f"prompt_{uuid.uuid4()}.wav")
-        
+        # Ensure filename is unique and has a standard extension (e.g., .wav)
+        # Use prompt_speech.filename if available and sanitize, otherwise generate UUID
+        original_filename = prompt_speech.filename if prompt_speech.filename else f"prompt_{uuid.uuid4()}"
+        # Basic sanitization (replace spaces, limit length, etc.) - adjust as needed
+        safe_filename = "".join(c if c.isalnum() or c in ('-', '_', '.') else '_' for c in original_filename)[:100]
+        # Ensure a reasonable extension, default to .wav if unknown
+        _, ext = os.path.splitext(safe_filename)
+        if not ext:
+            safe_filename += ".wav" # Assuming wav is the target format after potential conversion
+        prompt_speech_path = str(temp_dir / safe_filename)
+
+
         with open(prompt_speech_path, "wb") as f:
             f.write(await prompt_speech.read())
-    
+
     try:
-        # 处理文本分割
-        if request.split_sentences:
+        # 处理文本分割 (using direct variables)
+        if split_sentences:
             from app.utils.text_splitter import split_text_into_sentences
-            sentences = split_text_into_sentences(request.text)
-            
-            # 合成多个句子
-            project_id, output_files = await tts_service.synthesize_multiple(
+            sentences = split_text_into_sentences(text)
+
+            # 合成多个句子 (using direct variables)
+            project_id_res, output_files = await tts_service.synthesize_multiple(
                 sentences,
-                request.project_id,
+                project_id, # Use project_id variable
                 prompt_speech_path,
-                request.prompt_text,
-                request.output_format
+                prompt_text, # Use prompt_text variable
+                output_format # Use output_format variable
             )
+            # Ensure project_id is updated if a new one was generated
+            if project_id_res:
+                 project_id = project_id_res
         else:
-            # 合成单个文本
-            project_id, _ = await tts_service.synthesize(
-                request.text,
-                request.project_id,
+            # 合成单个文本 (using direct variables)
+            project_id_res, _ = await tts_service.synthesize(
+                text, # Use text variable
+                project_id, # Use project_id variable
                 prompt_speech_path,
-                request.prompt_text,
-                request.output_format,
-                request.split_sentences
+                prompt_text, # Use prompt_text variable
+                output_format, # Use output_format variable
+                split_sentences # Use split_sentences variable
             )
-        
+            # Ensure project_id is updated if a new one was generated
+            if project_id_res:
+                 project_id = project_id_res
+
         # 构建响应
         return SynthesizeResponse(
             status="success",
-            project_id=project_id,
+            project_id=project_id, # Use the potentially updated project_id
             stream_url=f"/stream/{project_id}"
         )
-    
+
     finally:
         # 清理临时文件
         if prompt_speech_path and os.path.exists(prompt_speech_path):
