@@ -39,8 +39,11 @@ class TTSService:
         project_path = self.file_manager.get_project_path(project_id)
         
         # 构建Spark-TTS命令行
+        python_interpreter = os.path.join(self.settings.SPARK_TTS_ROOT_DIR, ".venv", "bin", "python")
+        
+        # 使用相对路径，因为我们将在SPARK_TTS_ROOT_DIR目录中执行命令
         cmd = [
-            os.path.join(self.settings.SPARK_TTS_ROOT_DIR, ".venv", "bin", "python"),
+            python_interpreter,
             "-m",
             "cli.inference",
             "--text", text,
@@ -62,11 +65,13 @@ class TTSService:
         import subprocess
         temp_output_path = None
         try:
+            # 设置工作目录为Spark-TTS根目录，这样Python就能找到cli模块
             result = subprocess.run(
                 cmd,
                 check=True,
                 capture_output=True,
-                text=True
+                text=True,
+                cwd=self.settings.SPARK_TTS_ROOT_DIR  # 设置工作目录
             )
             if result.returncode != 0:
                 raise RuntimeError(f"Spark-TTS failed: {result.stderr}")
