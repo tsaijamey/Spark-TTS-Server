@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, File, Request
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Optional
 import uuid
 import os
@@ -64,9 +65,15 @@ stream_service = StreamService()
 # 添加logger定义
 logger = logging.getLogger(__name__)
 
+# 静态文件挂载
+static_files_dir = os.path.join(os.getcwd(), "static")
+os.makedirs(static_files_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_files_dir), name="static")
+
 @app.get("/")
-async def root():
-    return {"message": "Spark-TTS Server is running"}
+async def redirect_to_player():
+    """将根路径重定向到播放器页面"""
+    return RedirectResponse(url="/static/player.html")
 
 @app.post("/synthesize", response_model=SynthesizeResponse)
 async def synthesize(
