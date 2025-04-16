@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
+from pydantic import Field
 
 class Settings(BaseSettings):
     # FastAPI/Uvicorn Server Settings
@@ -24,6 +25,17 @@ class Settings(BaseSettings):
     # Prompt Defaults
     DEFAULT_PROMPT_SPEECH_PATH: str = ""
     DEFAULT_PROMPT_TEXT: str = ""
+
+    # 流媒体相关配置
+    STREAM_BASE_URL: str = Field(
+        default="/audio", 
+        description="流媒体音频文件的基础URL"
+    )
+
+    @property
+    def PROJECT_FILES_DIR(self) -> str:
+        """获取项目文件的存储目录"""
+        return os.path.join(os.getcwd(), "generated_audio")
 
     class Config:
         env_file = ".env"

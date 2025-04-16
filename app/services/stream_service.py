@@ -7,7 +7,6 @@ class StreamService:
     def __init__(self):
         """初始化流媒体服务"""
         self.settings = get_settings()
-        # 添加缺失的file_manager属性
         self.file_manager = FileManager()
     
     def generate_m3u8_playlist(self, project_id: str, request=None, format_type=None) -> str:
@@ -38,11 +37,27 @@ class StreamService:
         # 生成m3u8内容
         m3u8_content = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:30\n#EXT-X-MEDIA-SEQUENCE:0\n"
         
+        # 获取项目目录基础路径
+        base_dir = self.file_manager.get_base_dir()
+        
         for file_info in sorted_files:
-            # 安全地获取文件路径和时长，提供默认值避免错误
-            relative_path = file_info.get("path", "").replace(self.settings.AUDIO_FILES_DIR, "").lstrip("/")
+            # 安全地获取文件路径，使用file_manager来处理路径
+            file_path = file_info.get("path", "")
+            
+            # 创建相对路径：从项目基础目录开始的路径
+            if base_dir and file_path.startswith(base_dir):
+                relative_path = file_path[len(base_dir):].lstrip(os.sep)
+            else:
+                # 如果无法确定相对路径，直接使用文件名
+                relative_path = os.path.basename(file_path)
+            
+            # 添加音频持续时间信息
             duration = file_info.get("duration", 10)  # 默认10秒
-            m3u8_content += f"#EXTINF:{duration},\n{self.settings.STREAM_BASE_URL}/{relative_path}\n"
+            
+            # 构建完整的流URL
+            stream_url = f"{self.settings.STREAM_BASE_URL or ''}/{relative_path}"
+            
+            m3u8_content += f"#EXTINF:{duration},\n{stream_url}\n"
         
         m3u8_content += "#EXT-X-ENDLIST"
         return m3u8_content

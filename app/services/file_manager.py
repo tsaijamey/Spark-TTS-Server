@@ -1,18 +1,21 @@
 import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.core.config import get_settings
 
 class FileManager:
     def __init__(self):
         self.settings = get_settings()
-        self.audio_dir = Path(self.settings.GENERATED_AUDIO_DIR)
-        
+    
+    def get_base_dir(self) -> str:
+        """获取文件存储的基础目录"""
+        return self.settings.PROJECT_FILES_DIR
+    
     def get_project_path(self, project_id: str) -> str:
         """获取项目目录路径"""
-        project_path = self.audio_dir / project_id
-        project_path.mkdir(parents=True, exist_ok=True)
-        return str(project_path)
+        project_path = os.path.join(self.get_base_dir(), project_id)
+        os.makedirs(project_path, exist_ok=True)
+        return project_path
         
     def get_next_order_index(self, project_id: str) -> int:
         """获取下一个序号"""
