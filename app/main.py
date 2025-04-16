@@ -35,6 +35,9 @@ from app.services.audio_processor import AudioProcessor
 from app.services.file_manager import FileManager
 from app.services.stream_service import StreamService
 
+# Import routers
+from app.routers import audio
+
 # Initialize FastAPI app with metadata
 app = FastAPI(
     title="Spark-TTS API Server",
@@ -254,6 +257,9 @@ async def get_audio_file(project_id: str, filename: str):
     except Exception as e:
         logger.error(f"Error getting audio file {filename} for project {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting audio file: {str(e)}")
+
+# Include audio router
+app.include_router(audio.router)
 
 if __name__ == "__main__":
     import uvicorn

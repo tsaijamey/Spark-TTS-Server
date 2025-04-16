@@ -5,8 +5,10 @@ import logging
 
 router = APIRouter()
 
-@router.get("/audio/{project}/{filename}")
-async def get_audio_file(project: str, filename: str):
+# ...existing code...
+
+@router.get("/spark/audio/{project}/{filename}")
+async def get_spark_audio_file(project: str, filename: str):
     try:
         audio_path = os.path.join("generated_audio", project, filename)
         if not os.path.exists(audio_path):
@@ -15,3 +17,5 @@ async def get_audio_file(project: str, filename: str):
     except Exception as e:
         logging.error(f"Error getting audio file {filename} for project {project}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving audio file: {str(e)}")
+
+# ...existing code...
