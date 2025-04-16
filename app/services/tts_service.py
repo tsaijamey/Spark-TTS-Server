@@ -41,7 +41,6 @@ class TTSService:
         # 构建Spark-TTS命令行
         cmd = [
             os.path.join(self.settings.SPARK_TTS_ROOT_DIR, ".venv", "bin", "python"),
-            "-m",
             os.path.join(self.settings.SPARK_TTS_ROOT_DIR, "cli", "inference.py"),  # 使用完整路径
             "--model-dir", self.settings.SPARK_TTS_MODEL_DIR,
             "--device", str(self.settings.SPARK_TTS_DEVICE),
