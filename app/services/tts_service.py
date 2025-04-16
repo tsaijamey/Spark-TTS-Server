@@ -41,11 +41,12 @@ class TTSService:
         # 构建Spark-TTS命令行
         cmd = [
             os.path.join(self.settings.SPARK_TTS_ROOT_DIR, ".venv", "bin", "python"),
-            os.path.join(self.settings.SPARK_TTS_ROOT_DIR, "cli", "inference.py"),  # 使用完整路径
-            "--model-dir", self.settings.SPARK_TTS_MODEL_DIR,
-            "--device", str(self.settings.SPARK_TTS_DEVICE),
+            "-m",
+            "cli.inference",
             "--text", text,
-            "--save_dir", project_path
+            "--device", str(self.settings.SPARK_TTS_DEVICE),
+            "--save_dir", project_path,
+            "--model_dir", self.settings.SPARK_TTS_MODEL_DIR
         ]
         
         # 使用提供的参数或默认值
@@ -53,12 +54,13 @@ class TTSService:
         final_prompt_text = prompt_text or self.settings.DEFAULT_PROMPT_TEXT
         
         if final_prompt_speech:
-            cmd.extend(["--prompt-speech", final_prompt_speech])
+            cmd.extend(["--prompt_speech_path", final_prompt_speech])
         if final_prompt_text:
-            cmd.extend(["--prompt-text", final_prompt_text])
+            cmd.extend(["--prompt_text", final_prompt_text])
             
         # 执行命令
         import subprocess
+        temp_output_path = None
         try:
             result = subprocess.run(
                 cmd,
@@ -98,7 +100,7 @@ class TTSService:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Spark-TTS execution failed: {e.stderr}")
         except Exception as e:
-            if os.path.exists(temp_output_path):
+            if temp_output_path and os.path.exists(temp_output_path):
                 os.remove(temp_output_path)
             raise
         
