@@ -82,6 +82,8 @@ async def synthesize(
     """
     # 验证请求参数
     if not request or not request.text:
+        print("Request is :", request)
+        print("Request text is :", request.text)
         raise ValidationError("Text is required")
     
     # 处理提示语音文件
