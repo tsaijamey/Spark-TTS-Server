@@ -73,7 +73,7 @@
             directLinks.innerHTML = '';
             
             // 获取m3u8播放列表中的直接音频文件链接
-            fetch(`/spark/stream/${projectId}`)
+            fetch(`/stream/${projectId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -110,7 +110,7 @@
                     }
                     
                     // 尝试使用HLS.js播放
-                    const m3u8Url = `/spark/stream/${projectId}`;
+                    const m3u8Url = `/stream/${projectId}`;
                     
                     if (Hls.isSupported()) {
                         const hls = new Hls();
