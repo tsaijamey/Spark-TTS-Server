@@ -5,8 +5,18 @@ class StreamService:
     def __init__(self):
         self.settings = get_settings()
     
-    def generate_m3u8_playlist(self, project_id: str) -> str:
-        """生成m3u8播放列表"""
+    def generate_m3u8_playlist(self, project_id: str, request=None, format_type=None) -> str:
+        """
+        生成m3u8播放列表
+        
+        参数:
+            project_id: 项目ID
+            request: HTTP请求对象(可选)
+            format_type: 音频格式类型(可选)
+        
+        返回:
+            m3u8播放列表内容
+        """
         files = self.file_manager.get_project_files(project_id)
     
         if not files:

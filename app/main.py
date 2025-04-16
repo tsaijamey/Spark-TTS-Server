@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, File
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, UploadFile, HTTPException, status, Depends, Form, File, Request
+from fastapi.responses import StreamingResponse, Response
 from typing import Optional
 import uuid
 import os
@@ -168,32 +168,29 @@ async def synthesize(
             os.remove(prompt_speech_path)
 
 @app.get("/stream/{project_id}")
-async def stream_project(project_id: str):
-    """
-    获取指定项目的 M3U8 播放列表，用于按顺序流式播放该项目下的所有音频
-    
-    - **project_id**: 项目ID
-    """
+async def stream_project(
+    project_id: str,
+    request: Request
+):
+    """流式获取指定项目的音频"""
     try:
-        # 获取项目文件列表
-        files = file_manager.get_project_files(project_id)
-        if not files:
-            raise ProjectNotFoundError(project_id)
-        
-        # 生成 M3U8 播放列表
+        # 确保正确调用generate_m3u8_playlist方法
+        # 调用时传递所需参数，与方法定义匹配
         m3u8_content = stream_service.generate_m3u8_playlist(
-            project_id,
-            files,
-            settings.AUDIO_BASE_URL
+            project_id=project_id,
+            request=request
         )
         
-        # 返回 M3U8 播放列表
-        return StreamingResponse(
-            content=iter([m3u8_content.encode()]),
+        # 或者，如果你不需要传递所有参数：
+        # m3u8_content = stream_service.generate_m3u8_playlist(project_id)
+        
+        return Response(
+            content=m3u8_content,
             media_type="application/vnd.apple.mpegurl"
         )
-    except FileNotFoundError:
-        raise ProjectNotFoundError(project_id)
+    except Exception as e:
+        logger.error(f"Error streaming project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error streaming project: {str(e)}")
 
 @app.get("/projects/{project_id}/files", response_model=ProjectFilesResponse)
 async def get_project_files(project_id: str):
