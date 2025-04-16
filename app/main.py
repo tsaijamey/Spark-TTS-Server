@@ -4,6 +4,7 @@ from typing import Optional
 import uuid
 import os
 from pathlib import Path
+import logging
 
 # Import core modules
 from app.core.config import get_settings
@@ -59,6 +60,9 @@ tts_service = TTSService()
 audio_processor = AudioProcessor()
 file_manager = FileManager()
 stream_service = StreamService()
+
+# 添加logger定义
+logger = logging.getLogger(__name__)
 
 @app.get("/")
 async def root():
@@ -174,21 +178,17 @@ async def stream_project(
 ):
     """流式获取指定项目的音频"""
     try:
-        # 确保正确调用generate_m3u8_playlist方法
-        # 调用时传递所需参数，与方法定义匹配
         m3u8_content = stream_service.generate_m3u8_playlist(
             project_id=project_id,
             request=request
         )
-        
-        # 或者，如果你不需要传递所有参数：
-        # m3u8_content = stream_service.generate_m3u8_playlist(project_id)
         
         return Response(
             content=m3u8_content,
             media_type="application/vnd.apple.mpegurl"
         )
     except Exception as e:
+        # 现在logger已定义，可以正常使用
         logger.error(f"Error streaming project {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error streaming project: {str(e)}")
 
